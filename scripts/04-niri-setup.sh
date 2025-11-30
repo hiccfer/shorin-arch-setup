@@ -96,21 +96,56 @@ flatpak remote-modify flathub --url=https://mirror.sjtu.edu.cn/flathub > /dev/nu
 success "Flatpak configured."
 
 # ------------------------------------------------------------------------------
-# 4. Install Dependencies
+# 4. Install Dependencies from List (Robust Mode)
 # ------------------------------------------------------------------------------
 log "Step 4/9: Installing dependencies from niri-applist.txt..."
-LIST_FILE="$PARENT_DIR/niri-applist.txt"
-if [ -f "$LIST_FILE" ]; then
-    PACKAGES=$(grep -vE "^\s*#" "$LIST_FILE" | tr '\n' ' ')
-    if [ -n "$PACKAGES" ]; then
-        if runuser -u "$TARGET_USER" -- yay -S --noconfirm --needed $PACKAGES; then
-            success "Dependencies installed."
-        else
-            warn "yay reported issues."
-        fi
-    fi
-fi
 
+LIST_FILE="$PARENT_DIR/niri-applist.txt"
+
+if [ -f "$LIST_FILE" ]; then
+    # 读取文件到数组，并过滤注释和空行
+    mapfile -t PACKAGE_ARRAY < <(grep -vE "^\s*#|^\s*$" "$LIST_FILE")
+    
+    if [ ${#PACKAGE_ARRAY[@]} -gt 0 ]; then
+        # --- 预处理：构建安装列表并自动纠错 ---
+        CLEAN_LIST=""
+        for pkg in "${PACKAGE_ARRAY[@]}"; do
+            # 自动修复常见的 imagemagic 拼写错误
+            if [ "$pkg" == "imagemagic" ]; then
+                log "-> [Auto-Fix] Correcting typo 'imagemagic' to 'imagemagick'..."
+                pkg="imagemagick"
+            fi
+            CLEAN_LIST+="$pkg "
+        done
+        
+        log "-> Attempting batch installation of ${#PACKAGE_ARRAY[@]} packages..."
+        
+        # --- 尝试 1: 批量安装 (效率最高) ---
+        # --answerdiff=None --answerclean=None 防止 yay 在编译时因为等待用户输入 y/n 而卡住
+        if runuser -u "$TARGET_USER" -- yay -S --noconfirm --needed --answerdiff=None --answerclean=None $CLEAN_LIST; then
+            success "All dependencies installed successfully (Batch mode)."
+        else
+            error "Batch installation failed (likely due to an invalid package name)."
+            warn "Switching to 'One-by-One' mode to ensure valid packages get installed..."
+            
+            # --- 尝试 2: 逐个安装兜底 (容错率高) ---
+            for pkg in $CLEAN_LIST; do
+                log "-> Installing: $pkg"
+                if runuser -u "$TARGET_USER" -- yay -S --noconfirm --needed --answerdiff=None --answerclean=None "$pkg"; then
+                    # 安装成功，不输出额外信息，保持清爽
+                    : 
+                else
+                    error "Failed to install '$pkg'. Skipping."
+                fi
+            done
+            success "Dependency installation process finished (with some errors)."
+        fi
+    else
+        warn "niri-applist.txt is empty."
+    fi
+else
+    warn "niri-applist.txt not found at $LIST_FILE. Skipping."
+fi
 # ------------------------------------------------------------------------------
 # 5. Clone Dotfiles (With Backup)
 # ------------------------------------------------------------------------------
@@ -172,7 +207,7 @@ if [ "$SKIP_AUTOLOGIN" = true ]; then
     echo -e "${YELLOW}[INFO] Existing Display Manager detected. Skipping TTY auto-login setup.${NC}"
     echo -e "${YELLOW}[INFO] Please select 'Niri' from your login screen session menu.${NC}"
 else
-    # 9.1 Getty Auto-login
+    # 9.1 Getty Auto-login (配置 TTY1 免密登录)
     GETTY_DIR="/etc/systemd/system/getty@tty1.service.d"
     mkdir -p "$GETTY_DIR"
     cat <<EOT > "$GETTY_DIR/autologin.conf"
@@ -181,9 +216,10 @@ ExecStart=
 ExecStart=-/sbin/agetty --noreset --noclear --autologin $TARGET_USER - \${TERM}
 EOT
 
-    # 9.2 Niri User Service
+    # 9.2 Niri User Service (创建 Systemd 用户服务文件)
     USER_SYSTEMD_DIR="$HOME_DIR/.config/systemd/user"
     mkdir -p "$USER_SYSTEMD_DIR"
+    
     cat <<EOT > "$USER_SYSTEMD_DIR/niri-autostart.service"
 [Unit]
 Description=Niri Session Autostart
@@ -196,8 +232,21 @@ Restart=on-failure
 [Install]
 WantedBy=default.target
 EOT
+
+    # 9.3 Manually Enable the Service (手动模拟 systemctl enable)
+    # 这一步代替了原来的 runuser systemctl 命令，解决了 DBus 连接失败的问题
+    log "-> Enabling niri-autostart.service (Manual Symlink)..."
+    
+    WANTS_DIR="$USER_SYSTEMD_DIR/default.target.wants"
+    mkdir -p "$WANTS_DIR"
+    
+    # 创建软链接：从 wants 目录指回上一级的 .service 文件
+    ln -sf "../niri-autostart.service" "$WANTS_DIR/niri-autostart.service"
+
+    # 9.4 Fix Permissions (至关重要：把所有权还给用户)
+    log "-> Fixing permissions for .config..."
     chown -R "$TARGET_USER:$TARGET_USER" "$HOME_DIR/.config"
-    runuser -u "$TARGET_USER" -- systemctl --user enable niri-autostart.service
+    
     success "TTY Auto-login configured."
 fi
 

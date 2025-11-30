@@ -1,4 +1,4 @@
-awww-git 
+awww-git
 breeze
 breeze-gtk
 breeze-icons
@@ -35,4 +35,4 @@ starship
 yazi
 fish
 jq
-imagemagic
+imagemagick
