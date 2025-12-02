@@ -38,3 +38,5 @@ imv
 mission-center
 neovim
 python-pywalfox
+qt6ct
+qt5ct
