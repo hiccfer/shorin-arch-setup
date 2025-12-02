@@ -10,54 +10,47 @@ source "$SCRIPT_DIR/00-utils.sh"
 check_root
 
 log ">>> Starting Phase 2: Essential (Must-have) Software & Drivers"
-
 # ------------------------------------------------------------------------------
-# 1. Btrfs & Snapper Configuration
+# 1. Btrfs Extras & GRUB (Config was done in 00-btrfs-init)
 # ------------------------------------------------------------------------------
-section "Step 1/8" "Filesystem & Snapshot Setup"
+section "Step 1/8" "Btrfs Extras & GRUB"
 
 ROOT_FSTYPE=$(findmnt -n -o FSTYPE /)
 
 if [ "$ROOT_FSTYPE" == "btrfs" ]; then
-    log "Btrfs filesystem detected."
-    exe pacman -Syu --noconfirm --needed snapper snap-pac btrfs-assistant
-    success "Snapper tools installed."
-
-    log "Initializing Snapper 'root' configuration..."
-    if ! snapper list-configs | grep -q "^root "; then
-        if [ -d "/.snapshots" ]; then
-            warn "Removing existing /.snapshots..."
-            exe_silent umount /.snapshots
-            exe_silent rm -rf /.snapshots
-        fi
-        if exe snapper -c root create-config /; then
-            success "Snapper config created."
-            log "Applying retention policy..."
-            exe snapper -c root set-config ALLOW_GROUPS="wheel" TIMELINE_CREATE="yes" TIMELINE_CLEANUP="yes" NUMBER_LIMIT="10" NUMBER_LIMIT_IMPORTANT="5" TIMELINE_LIMIT_HOURLY="5" TIMELINE_LIMIT_DAILY="7" TIMELINE_LIMIT_WEEKLY="0" TIMELINE_LIMIT_MONTHLY="0" TIMELINE_LIMIT_YEARLY="0"
-            success "Policy applied."
-        fi
-    else
-        log "Config exists."
-    fi
+    # Install Extras (snap-pac = auto snapshot on pacman, btrfs-assistant = GUI)
+    log "Installing Btrfs tools..."
+    exe pacman -Syu --noconfirm --needed snap-pac btrfs-assistant
     
+    # Enable Cleanup Timers (Double check)
     exe systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
 
+    # GRUB Integration
     if [ -d "/boot/grub" ] || [ -f "/etc/default/grub" ]; then
-        log "Checking GRUB..."
+        log "Configuring GRUB snapshots..."
+
+        # Fix symlink /boot/grub -> /efi/grub if needed
         if [ -d "/efi/grub" ]; then
             if [ ! -L "/boot/grub" ] || [ "$(readlink -f /boot/grub)" != "/efi/grub" ]; then
                 warn "Fixing /boot/grub symlink..."
-                if [ -d "/boot/grub" ] && [ ! -L "/boot/grub" ]; then exe mv /boot/grub "/boot/grub.bak.$(date +%s)"; fi
+                if [ -d "/boot/grub" ] && [ ! -L "/boot/grub" ]; then
+                    exe mv /boot/grub "/boot/grub.bak.$(date +%s)"
+                fi
                 exe ln -sf /efi/grub /boot/grub
-                success "Fixed."
+                success "Symlink fix applied."
             fi
         fi
+
         exe pacman -Syu --noconfirm --needed grub-btrfs inotify-tools
         exe systemctl enable --now grub-btrfsd
+
         if ! grep -q "grub-btrfs-overlayfs" /etc/mkinitcpio.conf; then
+            log "Adding overlayfs hook to mkinitcpio..."
             sed -i 's/^HOOKS=(\(.*\))/HOOKS=(\1 grub-btrfs-overlayfs)/' /etc/mkinitcpio.conf
             exe mkinitcpio -P
         fi
+
+        log "Regenerating GRUB..."
         exe grub-mkconfig -o /boot/grub/grub.cfg
     fi
 else

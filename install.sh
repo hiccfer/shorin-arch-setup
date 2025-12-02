@@ -138,6 +138,7 @@ sys_dashboard
 
 # Dynamic Module List
 BASE_MODULES=(
+    "00-btrfs-init.sh"
     "01-base.sh"
     "02-musthave.sh"
     "03-user.sh"
