@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Shorin Arch Setup - Main Installer (v4.4)
+# Shorin Arch Setup - Main Installer (v4.5)
 # ==============================================================================
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -77,7 +77,7 @@ show_banner() {
         2) banner3 ;;
     esac
     echo -e "${NC}"
-    echo -e "${DIM}   :: Arch Linux Automation Protocol :: v4.4 ::${NC}"
+    echo -e "${DIM}   :: Arch Linux Automation Protocol :: v4.5 ::${NC}"
     echo ""
 }
 
@@ -134,7 +134,7 @@ sys_dashboard() {
     
     if [ -f "$STATE_FILE" ]; then
         done_count=$(wc -l < "$STATE_FILE")
-        echo -e "${H_BLUE}║${NC} ${BOLD}Progress${NC} : Resuming ($done_count modules done)"
+        echo -e "${H_BLUE}║${NC} ${BOLD}Progress${NC} : Resuming ($done_count steps recorded)"
     fi
     echo -e "${H_BLUE}╚══════════════════════════════════════════════════════╝${NC}"
     echo ""
@@ -172,54 +172,67 @@ CURRENT_STEP=0
 log "Initializing installer sequence..."
 sleep 0.5
 
-# --- Reflector Mirror Update ---
+# --- Reflector Mirror Update (State Aware) ---
 section "Pre-Flight" "Mirrorlist Optimization"
-log "Checking Reflector..."
-exe pacman -Sy --noconfirm --needed reflector
 
-CURRENT_TZ=$(readlink -f /etc/localtime)
-REFLECTOR_ARGS="-a 24 -f 10 --sort score --save /etc/pacman.d/mirrorlist --verbose"
+# [MODIFIED] Check if already done
+if grep -q "^REFLECTOR_DONE$" "$STATE_FILE"; then
+    echo -e "   ${H_GREEN}✔${NC} Mirrorlist previously optimized."
+    echo -e "   ${DIM}   Skipping Reflector steps (Resume Mode)...${NC}"
+else
+    # --- Start Reflector Logic ---
+    log "Checking Reflector..."
+    exe pacman -Sy --noconfirm --needed reflector
 
-if [[ "$CURRENT_TZ" == *"Shanghai"* ]]; then
-    echo ""
-    echo -e "${H_YELLOW}╔══════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${H_YELLOW}║  DETECTED TIMEZONE: Asia/Shanghai                                ║${NC}"
-    echo -e "${H_YELLOW}║  Refreshing mirrors in China can be slow.                        ║${NC}"
-    echo -e "${H_YELLOW}║  Do you want to force refresh mirrors with Reflector?            ║${NC}"
-    echo -e "${H_YELLOW}╚══════════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    
-    read -t 60 -p "$(echo -e "   ${H_CYAN}Run Reflector? [y/N] (Default No in 60s): ${NC}")" choice
-    if [ $? -ne 0 ]; then echo ""; fi
-    choice=${choice:-N}
-    
-    if [[ "$choice" =~ ^[Yy]$ ]]; then
-        log "Running Reflector for China..."
-        if exe reflector $REFLECTOR_ARGS -c China; then
-            success "Mirrors updated."
+    CURRENT_TZ=$(readlink -f /etc/localtime)
+    REFLECTOR_ARGS="-a 24 -f 10 --sort score --save /etc/pacman.d/mirrorlist --verbose"
+
+    if [[ "$CURRENT_TZ" == *"Shanghai"* ]]; then
+        echo ""
+        echo -e "${H_YELLOW}╔══════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${H_YELLOW}║  DETECTED TIMEZONE: Asia/Shanghai                                ║${NC}"
+        echo -e "${H_YELLOW}║  Refreshing mirrors in China can be slow.                        ║${NC}"
+        echo -e "${H_YELLOW}║  Do you want to force refresh mirrors with Reflector?            ║${NC}"
+        echo -e "${H_YELLOW}╚══════════════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+        
+        read -t 60 -p "$(echo -e "   ${H_CYAN}Run Reflector? [y/N] (Default No in 60s): ${NC}")" choice
+        if [ $? -ne 0 ]; then echo ""; fi
+        choice=${choice:-N}
+        
+        if [[ "$choice" =~ ^[Yy]$ ]]; then
+            log "Running Reflector for China..."
+            if exe reflector $REFLECTOR_ARGS -c China; then
+                success "Mirrors updated."
+            else
+                warn "Reflector failed. Continuing with existing mirrors."
+            fi
         else
-            warn "Reflector failed. Continuing with existing mirrors."
+            log "Skipping mirror refresh."
         fi
     else
-        log "Skipping mirror refresh."
-    fi
-else
-    log "Detecting location for optimization..."
-    COUNTRY_CODE=$(curl -s --max-time 2 https://ipinfo.io/country)
-    
-    if [ -n "$COUNTRY_CODE" ]; then
-        info_kv "Country" "$COUNTRY_CODE" "(Auto-detected)"
-        log "Running Reflector for $COUNTRY_CODE..."
-        if ! exe reflector $REFLECTOR_ARGS -c "$COUNTRY_CODE"; then
-            warn "Country specific refresh failed. Trying global speed test..."
+        log "Detecting location for optimization..."
+        COUNTRY_CODE=$(curl -s --max-time 2 https://ipinfo.io/country)
+        
+        if [ -n "$COUNTRY_CODE" ]; then
+            info_kv "Country" "$COUNTRY_CODE" "(Auto-detected)"
+            log "Running Reflector for $COUNTRY_CODE..."
+            if ! exe reflector $REFLECTOR_ARGS -c "$COUNTRY_CODE"; then
+                warn "Country specific refresh failed. Trying global speed test..."
+                exe reflector $REFLECTOR_ARGS
+            fi
+        else
+            warn "Could not detect country. Running global speed test..."
             exe reflector $REFLECTOR_ARGS
         fi
-    else
-        warn "Could not detect country. Running global speed test..."
-        exe reflector $REFLECTOR_ARGS
+        success "Mirrorlist optimized."
     fi
-    success "Mirrorlist optimized."
+    # --- End Reflector Logic ---
+
+    # [MODIFIED] Record success so we don't ask again
+    echo "REFLECTOR_DONE" >> "$STATE_FILE"
 fi
+
 
 # --- Global Update ---
 section "Pre-Flight" "System Synchronization"
@@ -242,7 +255,7 @@ for module in "${MODULES[@]}"; do
         continue
     fi
 
-    # [MODIFIED] Checkpoint Logic: Auto-skip if in state file
+    # Checkpoint Logic: Auto-skip if in state file
     if grep -q "^${module}$" "$STATE_FILE"; then
         echo -e "   ${H_GREEN}✔${NC} Module ${BOLD}${module}${NC} already completed."
         echo -e "   ${DIM}   Skipping... (Delete .install_progress to force run)${NC}"
@@ -255,7 +268,7 @@ for module in "${MODULES[@]}"; do
     exit_code=$?
 
     if [ $exit_code -eq 0 ]; then
-        # [MODIFIED] Only record success
+        # Only record success
         echo "$module" >> "$STATE_FILE"
         success "Module $module completed."
     elif [ $exit_code -eq 130 ]; then
@@ -264,7 +277,7 @@ for module in "${MODULES[@]}"; do
         log "Exiting without rollback. You can resume later."
         exit 130
     else
-        # [MODIFIED] Failure logic: do NOT write to STATE_FILE
+        # Failure logic: do NOT write to STATE_FILE
         write_log "FATAL" "Module $module failed with exit code $exit_code"
         error "Module execution failed."
         exit 1

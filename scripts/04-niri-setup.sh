@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# 04-niri-setup.sh - Niri Desktop (Visual Enhanced & Auto-Rollback)
+# 04-niri-setup.sh - Niri Desktop (Visual Enhanced & Interactive Rollback)
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,26 +11,26 @@ source "$SCRIPT_DIR/00-utils.sh"
 DEBUG=${DEBUG:-0}
 CN_MIRROR=${CN_MIRROR:-0}
 
+# 定义回滚脚本位置
+UNDO_SCRIPT="$SCRIPT_DIR/niri-undochange.sh"
+
 check_root
 
 section "Phase 4" "Niri Desktop Environment"
 
 # ==============================================================================
-# [NEW] STEP 0: Safety Checkpoint & Error Handling
+# [NEW] STEP 0: Safety Checkpoint & Critical Error Handler
 # ==============================================================================
 
 # 1. Create Checkpoint
 create_checkpoint() {
     local marker="Before Niri Setup"
     
-    # Check if checkpoint already exists to avoid duplicates on re-run
     if snapper -c root list | grep -q "$marker"; then
         log "Checkpoint '$marker' already exists. Ready to proceed."
     else
         log "Creating safety checkpoint: '$marker'..."
         snapper -c root create -d "$marker"
-        
-        # Only create home snapshot if config exists
         if snapper -c home list &>/dev/null; then
             snapper -c home create -d "$marker"
         fi
@@ -40,27 +40,55 @@ create_checkpoint() {
 
 create_checkpoint
 
-# 2. Define Error Handler
-handle_error() {
-    local line_no=$1
-    echo ""
-    error "Script failed at line $line_no."
-    warn "Triggering automatic rollback mechanism..."
-    sleep 1
+# 2. Critical Failure Handler (The "Big Red Box" Interactive Logic)
+critical_failure_handler() {
+    local failed_reason="$1"
     
-    # Call the specific Niri rollback script
-    if [ -f "$SCRIPT_DIR/niri-undochange.sh" ]; then
-        bash "$SCRIPT_DIR/niri-undochange.sh"
-    else
-        error "Rollback script (niri-undochange.sh) not found!"
-        error "System state may be inconsistent."
-    fi
-    exit 1
+    # Disable trap to prevent loops during input
+    trap - ERR
+
+    echo ""
+    echo -e "\033[0;31m################################################################\033[0m"
+    echo -e "\033[0;31m#                                                              #\033[0m"
+    echo -e "\033[0;31m#   CRITICAL INSTALLATION FAILURE DETECTED                     #\033[0m"
+    echo -e "\033[0;31m#   Reason: $failed_reason                                     #\033[0m"
+    echo -e "\033[0;31m#   Status: System might be in an inconsistent state.          #\033[0m"
+    echo -e "\033[0;31m#                                                              #\033[0m"
+    echo -e "\033[0;31m#   Would you like to restore snapshot (undo changes)?         #\033[0m"
+    echo -e "\033[0;31m################################################################\033[0m"
+    echo ""
+
+    while true; do
+        # No default option (-p prompt only)
+        read -p "Execute System Recovery? [y/n]: " -r choice
+        case "$choice" in 
+            [yY][eE][sS]|[yY]) 
+                if [ -f "$UNDO_SCRIPT" ]; then
+                    warn "Executing recovery script: $UNDO_SCRIPT"
+                    bash "$UNDO_SCRIPT"
+                    exit 1 # The undo script handles reboot, but just in case
+                else
+                    error "Recovery script not found at: $UNDO_SCRIPT"
+                    error "You are on your own. Good luck."
+                    exit 1
+                fi
+                ;;
+            [nN][oO]|[nN])
+                warn "User chose NOT to recover. System might be in a broken state."
+                error "Installation aborted."
+                exit 1
+                ;;
+            *)
+                echo -e "\033[1;33mInvalid input. Please enter 'y' to recover or 'n' to abort.\033[0m"
+                ;;
+        esac
+    done
 }
 
-# 3. Enable Trap
-# Any command returning non-zero exit code will trigger handle_error
-trap 'handle_error $LINENO' ERR
+# 3. Enable Trap for Unexpected Errors
+# If the script crashes (syntax error, command failed outside of our manual checks),
+# it calls the handler with line number.
+trap 'critical_failure_handler "Script Error at Line $LINENO"' ERR
 
 
 # ==============================================================================
@@ -86,7 +114,7 @@ if [ -n "$DM_FOUND" ]; then
     SKIP_AUTOLOGIN=true
 else
     info_kv "DM Check" "None"
-    # Using read with timeout, || true ensures it doesn't trigger TRAP on timeout
+    # Using || true to ensure read timeout doesn't trigger TRAP ERR
     read -t 20 -p "$(echo -e "   ${H_CYAN}Enable TTY auto-login? [Y/n] (Default Y in 20s): ${NC}")" choice || true
     if [ $? -ne 0 ]; then echo ""; fi
     choice=${choice:-Y}
@@ -165,7 +193,7 @@ echo "$TARGET_USER ALL=(ALL) NOPASSWD: ALL" > "$SUDO_TEMP_FILE"
 chmod 440 "$SUDO_TEMP_FILE"
 
 # ==============================================================================
-# STEP 5: Dependencies (Refactored with Auto-Rollback)
+# STEP 5: Dependencies (Interactive Recovery)
 # ==============================================================================
 section "Step 4/9" "Dependencies"
 LIST_FILE="$PARENT_DIR/niri-applist.txt"
@@ -198,21 +226,21 @@ if [ -f "$LIST_FILE" ]; then
         if [ ${#BATCH_LIST[@]} -gt 0 ]; then
             log "Phase 1: Batch Installing Repository Packages..."
             
-            # Note: We use '|| handle_error' to explicitly catch yay failures if trap misses subshells
-            exe runuser -u "$TARGET_USER" -- yay -Syu --noconfirm --needed --answerdiff=None --answerclean=None "${BATCH_LIST[@]}"
+            # Using || true ensures that if yay returns non-zero, TRAP ERR isn't triggered immediately,
+            # allowing us to do our own verification logic below.
+            exe runuser -u "$TARGET_USER" -- yay -Syu --noconfirm --needed --answerdiff=None --answerclean=None "${BATCH_LIST[@]}" || true
             
             log "Verifying batch installation..."
             for pkg in "${BATCH_LIST[@]}"; do
                 if ! verify_installation "$pkg"; then
                     warn "Verification failed for '$pkg'. Retrying individually..."
                     # Retry
-                    exe runuser -u "$TARGET_USER" -- yay -Syu --noconfirm --needed "$pkg"
+                    exe runuser -u "$TARGET_USER" -- yay -Syu --noconfirm --needed "$pkg" || true
                     
                     # Final Check
                     if ! verify_installation "$pkg"; then
-                        # Manually trigger the error handler
-                        error "CRITICAL: Failed to install '$pkg' after retry."
-                        handle_error $LINENO
+                        # Trigger the Big Red Box
+                        critical_failure_handler "Failed to install '$pkg' (Repo) after retry."
                     else
                         success "Verified: $pkg"
                     fi
@@ -229,11 +257,11 @@ if [ -f "$LIST_FILE" ]; then
             for aur_pkg in "${AUR_LIST[@]}"; do
                 log "Installing '$aur_pkg'..."
                 
-                # Use || true to prevent Ctrl+C (130) from triggering the global TRAP immediately
+                # Try 1
                 runuser -u "$TARGET_USER" -- yay -Syu --noconfirm --needed --answerdiff=None --answerclean=None "$aur_pkg" || true
                 EXIT_CODE=$?
 
-                # Handle Ctrl+C skip
+                # Handle Ctrl+C skip (130) manually
                 if [ $EXIT_CODE -eq 130 ]; then
                     warn "Skipped '$aur_pkg' by user request (Ctrl+C)."
                     continue
@@ -256,8 +284,8 @@ if [ -f "$LIST_FILE" ]; then
 
                     # Final Check
                     if ! verify_installation "$aur_pkg"; then
-                        error "CRITICAL: Failed to install '$aur_pkg' (AUR) after retry."
-                        handle_error $LINENO
+                        # Trigger the Big Red Box
+                        critical_failure_handler "Failed to install '$aur_pkg' (AUR) after retry."
                     else
                          success "Verified: $aur_pkg"
                     fi
@@ -298,13 +326,12 @@ else
     rm -rf "$TEMP_DIR"
     
     # Attempt 2: Gitee
-    if exe runuser -u "$TARGET_USER" -- git clone "$REPO_GITEE" "$TEMP_DIR"; then
+    if runuser -u "$TARGET_USER" -- git clone "$REPO_GITEE" "$TEMP_DIR"; then
         success "Cloned successfully (Source: Gitee)."
     else
         error "Clone failed from both GitHub and Gitee."
-        # Clone failure is critical enough to trigger rollback?
-        # Let's assume yes for a perfect setup.
-        handle_error $LINENO
+        # Clone failure triggers the handler
+        critical_failure_handler "Failed to clone dotfiles from GitHub and Gitee."
     fi
 fi
 
