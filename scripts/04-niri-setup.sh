@@ -145,7 +145,9 @@ critical_failure_handler() {
     echo ""
 
     while true; do
-        read -p "Execute System Recovery? (Y/N - Will wait indefinitely): " -r choice
+        # 提示改为 [Y/n]
+        read -p "Execute System Recovery? [Y/n]: " -r choice
+        
         case "$choice" in 
             [yY][eE][sS]|[yY]) 
                 if [ -f "$UNDO_SCRIPT" ]; then
@@ -157,8 +159,15 @@ critical_failure_handler() {
                     exit 1
                 fi
                 ;;
+            [nN][oO]|[nN])
+                # 新增：处理 N 输入
+                warn "User chose NOT to recover. System might be in a broken state."
+                error "Installation aborted due to failure in: $failed_pkg"
+                exit 1
+                ;;
             *)
-                echo "Waiting for valid input (Y)..."
+                # 其他乱码输入继续等待
+                echo "Invalid input. Please enter 'y' to recover or 'n' to abort."
                 ;;
         esac
     done
