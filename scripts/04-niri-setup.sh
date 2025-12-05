@@ -121,6 +121,13 @@ SUDO_TEMP_FILE="/etc/sudoers.d/99_shorin_installer_temp"
 echo "$TARGET_USER ALL=(ALL) NOPASSWD: ALL" > "$SUDO_TEMP_FILE"
 chmod 440 "$SUDO_TEMP_FILE"
 
+# ------------------------------------------------------------------------------
+# 4. Dependencies (LOGIC FIXED: Verification via pacman -Q)
+# ------------------------------------------------------------------------------
+section "Step 4/9" "Dependencies"
+LIST_FILE="$PARENT_DIR/niri-applist.txt"
+UNDO_SCRIPT="$PARENT_DIR/undochange.sh"
+
 # --- Critical Failure Handler ---
 critical_failure_handler() {
     local failed_pkg="$1"
@@ -258,7 +265,7 @@ if [ -f "$LIST_FILE" ]; then
                 fi
             done
         fi
-        
+    
         # Recovery Check
         if ! command -v waybar &> /dev/null; then
             warn "Waybar missing. Installing stock..."
