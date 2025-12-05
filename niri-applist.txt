@@ -1,4 +1,3 @@
-this-app-is-a-error-pac
 firefox
 breeze
 breeze-gtk
