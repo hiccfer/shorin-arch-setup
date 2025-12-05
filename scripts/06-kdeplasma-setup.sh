@@ -65,8 +65,6 @@ if [ "$IS_CN_ENV" = true ]; then
     
     # Use utility function
     select_flathub_mirror
-
-    exe flatpak remote-modify --no-p2p flathub
     
     success "Optimizations Enabled."
 else
