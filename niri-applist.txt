@@ -7,7 +7,7 @@ mission-center                           # System Monitor (Task Manager style)
 fish                                     # Friendly Interactive Shell
 
 # --- Niri/Wayland Components ---
-xwayland-satellite                       # XWayland compatibility daemon (Rootless)
+xwayland-satellite                       # XWayland compatibility 
 swayidle                                 # Idle management daemon (Screen lock/suspend)
 swaylock-effects                         # Screen locker with effects (Blur/Screenshots)
 swayosd                                  # On-Screen Display for Volume/Brightness
