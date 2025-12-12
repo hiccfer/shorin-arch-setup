@@ -240,6 +240,13 @@ if [ -f "$LIST_FILE" ]; then
     
     # 1. 过滤空行和注释
     # 2. 启动 FZF
+    # -------------------------------------------------------------
+    # FZF TUI Logic (Fixed marker width error)
+    # -------------------------------------------------------------
+    
+    # 1. 过滤空行和注释
+    # 2. 启动 FZF
+    # 修正说明: --marker 改为 "* " 以符合宽度限制(max 2 chars)
     SELECTED_LINES=$(grep -vE "^\s*#|^\s*$" "$LIST_FILE" | \
         fzf --multi \
             --layout=reverse \
@@ -247,7 +254,7 @@ if [ -f "$LIST_FILE" ]; then
             --margin=1,2 \
             --prompt="Search > " \
             --pointer="->" \
-            --marker="[*] " \
+            --marker="* " \
             --delimiter='#' \
             --with-nth=1 \
             --bind 'load:select-all' \
@@ -257,6 +264,8 @@ if [ -f "$LIST_FILE" ]; then
             --preview "echo {} | awk -F'#' '{print \$2}' | sed 's/^ //'" \
             --preview-window=right:50%:wrap:border-left \
             --color=dark,fg+:bright-white,bg+:black,hl:yellow,hl+:yellow,prompt:cyan,pointer:cyan,marker:green,spinner:yellow,header:gray)
+            
+    # -------------------------------------------------------------
     
     # Check if user cancelled (Empty output)
     if [ -z "$SELECTED_LINES" ]; then
