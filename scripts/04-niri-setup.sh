@@ -228,7 +228,7 @@ if [ -f "$LIST_FILE" ]; then
         # Countdown Logic (The "GRUB Style" Wait)
         # -------------------------------------------------------------
         echo ""
-        echo -e "   ${H_YELLOW}>>> Default installation will start in 60 seconds.${NC}"
+        echo -e "   ${H_YELLOW}>>> Default installation will start in 120 seconds.${NC}"
         echo -e "   ${H_CYAN}>>> Press [!!ANY KEY!!] to [!!customize!!] package selection...${NC}"
         
         # read -t 120: Wait 120s
@@ -236,7 +236,7 @@ if [ -f "$LIST_FILE" ]; then
         # -s: Silent input
         # -r: Raw input
         # || true ensures script continues even if timeout (exit code 142)
-        if read -t 60 -n 1 -s -r; then
+        if read -t 120 -n 1 -s -r; then
             # [CASE A] User pressed a key -> Enter FZF
             USER_INTERVENTION=true
         else
