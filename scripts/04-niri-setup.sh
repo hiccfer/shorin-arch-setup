@@ -450,10 +450,9 @@ if [ -d "$TEMP_DIR/dotfiles" ]; then
     GTK4_CONF="$HOME_DIR/.config/gtk-4.0"
     THEME_SRC="$HOME_DIR/.themes/adw-gtk3-dark/gtk-4.0"
 
-    exe runuser -u "$TARGET_USER" -- rm -rfv "$GTK4_CONF/assets" "$GTK4_CONF/gtk.css" "$GTK4_CONF/gtk-dark.css"
+    exe runuser -u "$TARGET_USER" -- rm -rfv "$GTK4_CONF/gtk.css" "$GTK4_CONF/gtk-dark.css"
     exe runuser -u "$TARGET_USER" -- ln -sf "$THEME_SRC/gtk-dark.css" "$GTK4_CONF/gtk-dark.css"
     exe runuser -u "$TARGET_USER" -- ln -sf "$THEME_SRC/gtk.css" "$GTK4_CONF/gtk.css"
-    exe runuser -u "$TARGET_USER" -- ln -sf "$THEME_SRC/assets" "$GTK4_CONF/assets"
 
     if command -v flatpak &>/dev/null; then
         log "Applying Flatpak GTK theme overrides..."
