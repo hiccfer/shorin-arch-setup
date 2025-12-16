@@ -28,7 +28,7 @@ gnome-text-editor                        # notebook
 # --- AUR Packages (Social) ---
 AUR:linuxqq-appimage                     # Tencent QQ (AppImage)
 AUR:wechat-appimage                      # WeChat (AppImage)
-
+AUR:typora-free                          # markdown editor
 # --- Flatpak Packages (Prefix with flatpak:) ---
 flatpak:it.mijorus.gearlever                     # AppImage Manager (Integrates AppImages)
 flatpak:com.obsproject.Studio            # OBS Studio (Streaming & Recording)
