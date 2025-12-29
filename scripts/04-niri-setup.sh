@@ -434,16 +434,9 @@ fi
 # --- Setting Default MIME Types ---
 section "Config" "Setting Default Apps (MIME)"
 log "Configuring file associations..."
-
-# 1. Directory -> Nautilus
 as_user xdg-mime default org.gnome.Nautilus.desktop inode/directory
-
-# 2. Images -> imv (Covers common formats)
 as_user xdg-mime default imv.desktop image/jpeg image/png image/gif image/webp image/bmp image/tiff
-
-# 3. Videos -> mpv (Covers common formats)
 as_user xdg-mime default mpv.desktop video/mp4 video/x-matroska video/webm video/avi video/quicktime
-
 success "MIME types configured."
 # ==============================================================================
 # STEP 7: Wallpapers
