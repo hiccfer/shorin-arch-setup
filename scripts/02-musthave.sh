@@ -142,8 +142,8 @@ if [ "$BT_FOUND" = true ]; then
         log "Desktop is KDE: Installing Bluez only..."
         exe pacman -Syu --noconfirm --needed bluez
     else
-        log "Desktop is Niri: Installing Bluez + Blueberry..."
-        exe pacman -Syu --noconfirm --needed bluez blueberry
+        log "Desktop is Niri: Installing Bluez + Blueman..."
+        exe pacman -Syu --noconfirm --needed bluez blueman
     fi
 
     exe systemctl enable --now bluetooth
