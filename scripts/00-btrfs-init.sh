@@ -36,9 +36,9 @@ if [ "$ROOT_FSTYPE" == "btrfs" ]; then
             # Apply Retention Policy
             exe snapper -c root set-config \
                 ALLOW_GROUPS="wheel" \
-                TIMELINE_CREATE="yes" \
+                TIMELINE_CREATE="no" \
                 TIMELINE_CLEANUP="yes" \
-                NUMBER_LIMIT="10" \
+                NUMBER_LIMIT="20" \
                 NUMBER_LIMIT_IMPORTANT="5" \
                 TIMELINE_LIMIT_HOURLY="5" \
                 TIMELINE_LIMIT_DAILY="7" \
@@ -75,9 +75,9 @@ if findmnt -n -o FSTYPE /home | grep -q "btrfs"; then
             # Apply same policy to home
             exe snapper -c home set-config \
                 ALLOW_GROUPS="wheel" \
-                TIMELINE_CREATE="yes" \
+                TIMELINE_CREATE="no" \
                 TIMELINE_CLEANUP="yes" \
-                NUMBER_LIMIT="10" \
+                NUMBER_LIMIT="20" \
                 NUMBER_LIMIT_IMPORTANT="5" \
                 TIMELINE_LIMIT_HOURLY="5" \
                 TIMELINE_LIMIT_DAILY="7" \
