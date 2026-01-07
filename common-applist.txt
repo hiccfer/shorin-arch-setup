@@ -5,6 +5,9 @@ mpv                                      # Minimalist High Performance Video Pla
 fragments                                # BitTorrent Client (GNOME style)
 mangohud                                 # OSD tool for gaming (like msi afterburner)
 gamescope                                # gaming conpositor made by Valve
+upscaler                                 # image upscaler (make it more clear)
+curtail                                  # compress image (make it smaller)    
+lact                                     # GPU Control Tool (Overclocking/Fan)
 
 # --- System Utilities ---
 btop                                     # Resource Monitor (TUI)
@@ -12,6 +15,7 @@ gnome-disk-utility                       # Disk Management Utility (Disks)
 baobab                                   # Disk Usage Analyzer
 mission-center                           # System Monitor (Task Manager style)
 clash-verge-rev                          # Sometimes a detour is necessary to solve a problem
+flatseal                                 # flatpak permission manager 
 # --- Filesystem Support ---
 dosfstools                               # Tools for FAT12/16/32 filesystems
 ntfs-3g                                  # NTFS filesystem driver
@@ -39,17 +43,10 @@ AUR:wechat-appimage                      # WeChat (AppImage)
 AUR:typora-free                          # markdown editor
 AUR:lsfg-vk-bin                          # yellow duck frame generator
 AUR:mangojuice-bin                       # GUI for mangohud
+AUR:gearlever                            # AppImage Manager (Integrates AppImages)
 
-# --- Flatpak Packages (Prefix with flatpak:) ---
-flatpak:it.mijorus.gearlever                     # AppImage Manager (Integrates AppImages)
+# --- Flatpak Packages (Prefix with flatpak:) ---      
 flatpak:com.obsproject.Studio            # OBS Studio (Streaming & Recording)
 flatpak:io.github.fabrialberio.pinapp    # PinApp (Unofficial Pinterest Client)
-flatpak:it.mijorus.gearlever             # Gear Lever (AppImage Manager)
-flatpak:com.obsproject.Studio            # OBS Studio (Streaming/Recording)
 flatpak:com.github.wwmm.easyeffects      # Audio Effects for PipeWire (Equalizer)
-flatpak:io.github.ilya_zlobintsev.LACT   # AMD GPU Control Tool (Overclocking/Fan)
 flatpak:com.github.unrud.VideoDownloader # Download youtube or bilibili videos
-flatpak:io.gitlab.theevilskeleton.Upscaler # image upscaler (make it more clear)
-flatpak:com.github.huluti.Curtail        # compress image (make it smaller)
-flatpak:io.gitlab.adhami3310.Footage     # easy cut vidoes and compress videos
-flatpak:com.github.tchx84.Flatseal       # flatpak permission manager 
