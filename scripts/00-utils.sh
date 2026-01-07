@@ -150,7 +150,7 @@ select_flathub_mirror() {
     local urls=(
         "https://mirror.sjtu.edu.cn/flathub"
         "https://mirrors.ustc.edu.cn/flathub"
-        "https://dl.flathub.org/repo/flathub.flatpakrepo"
+        "https://dl.flathub.org/repo/"
     )
 
     # 2. 动态计算菜单宽度 (基于无颜色的纯文本)
