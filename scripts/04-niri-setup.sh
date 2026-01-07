@@ -451,7 +451,7 @@ if command -v firefox &>/dev/null; then
         
         log "Initializing Firefox Profile..."
         # 1. 启动 Headless Firefox 以生成配置文件夹 (User Mode)
-        as_user firefox --headless >/dev/null 2>&1 &
+        as_user LC_MESSAGES=zh_CN.UTF-8 firefox --headless >/dev/null 2>&1 &
         sleep 3
         # 确保进程已完全终止
         pkill firefox >/dev/null
@@ -479,12 +479,12 @@ if command -v firefox &>/dev/null; then
             as_user bash -c "echo 'user_pref(\"sidebar.verticalTabs\", true);' >> '$USER_JS'"
             as_user bash -c "echo 'user_pref(\"sidebar.visibility\", \"expand-on-hover\");' >> '$USER_JS'"
             as_user bash -c "echo 'user_pref(\"browser.toolbars.bookmarks.visibility\", \"never\");' >> '$USER_JS'"
-            
+            as_user bash -c "echo 'user_pref(\"browser.sessionstore.resume_from_crash\", false);' >> '$USER_JS'"
             log "Applying settings (Headless Startup)..."
             # 4. 再次启动 Headless Firefox 以应用配置
-            as_user firefox --headless >/dev/null 2>&1 &
+            as_user LC_MESSAGES=zh_CN.UTF-8 firefox --headless >/dev/null 2>&1 &
             FF_PID=$!
-            
+            XUL_STORE="$PROFILE_DIR/xulStore.json"
             log "Waiting for initialization (5s)..."
             sleep 5
             
@@ -492,7 +492,16 @@ if command -v firefox &>/dev/null; then
             # 杀掉目标用户的 firefox 进程，确保配置写入 prefs.js
             pkill firefox
             wait 2>/dev/null
-            
+            log "fix firefox maximize issue"
+cat <<EOF > "$XUL_STORE"
+{
+    "chrome://browser/content/browser.xhtml": {
+        "main-window": {
+            "sizemode": "normal",
+        }
+    }
+}
+EOF
             log "Cleaning up injection..."
             # 5. 清理/还原 user.js
             if [ "$HAS_EXISTING_USER_JS" = true ]; then
