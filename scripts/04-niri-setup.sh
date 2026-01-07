@@ -135,19 +135,6 @@ section "Phase 4" "Niri Desktop Environment"
 # STEP 0: Safety Checkpoint
 # ==============================================================================
 
-create_checkpoint() {
-  local marker="Before Niri Setup"
-  if snapper -c root list | grep -q "$marker"; then
-    log "Checkpoint '$marker' already exists."
-  else
-    log "Creating safety checkpoint..."
-    snapper -c root create -d "$marker"
-    snapper -c home list &>/dev/null && snapper -c home create -d "$marker"
-    success "Checkpoint created."
-  fi
-}
-create_checkpoint
-
 # Enable Trap
 trap 'critical_failure_handler "Script Error at Line $LINENO"' ERR
 
