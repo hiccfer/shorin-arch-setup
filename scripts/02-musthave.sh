@@ -54,7 +54,7 @@ if [ "$ROOT_FSTYPE" == "btrfs" ]; then
                 success "Symlink fix applied."
             fi
         fi
-        exe pacman -S --noconfirm --needed grub-btrfs inotify-tools
+        exe pacman -Syu --noconfirm --needed grub-btrfs inotify-tools
         exe systemctl enable --now grub-btrfsd
 
         if ! grep -q "grub-btrfs-overlayfs" /etc/mkinitcpio.conf; then
