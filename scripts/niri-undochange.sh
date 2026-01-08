@@ -10,11 +10,6 @@ source "$SCRIPT_DIR/00-utils.sh"
 
 check_root
 
-echo ""
-echo -e "${H_RED}╔══════════════════════════════════════════════════════╗${NC}"
-echo -e "${H_RED}║              INSTALLATION FAILURE DETECTED           ║${NC}"
-echo -e "${H_RED}╚══════════════════════════════════════════════════════╝${NC}"
-echo ""
 warn "Critical error encountered during Niri setup."
 log "Initiating system rollback to checkpoint: 'Before Desktop Environments'..."
 

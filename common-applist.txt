@@ -1,6 +1,8 @@
 Firefox                                  # browser
 neovim                                   # Advanced version of vim 
 lazyvim                                  # Great preset of neovim 
+wine                                     # run windows exe 
+virt-manager                             # KVM qemu virtula machine
 
 # --- Gaming & Media ---
 steam                                    # Gaming Platform (Valve)
@@ -14,6 +16,7 @@ curtail                                  # compress image (make it smaller)
 lact                                     # GPU Control Tool (Overclocking/Fan)
 
 # --- System Utilities ---
+yazi                                     # Blazing fast terminal file manager
 btop                                     # Resource Monitor (TUI)
 gnome-disk-utility                       # Disk Management Utility (Disks)
 baobab                                   # Disk Usage Analyzer
@@ -23,7 +26,7 @@ flatseal                                 # flatpak permission manager
 # --- Filesystem Support ---
 dosfstools                               # Tools for FAT12/16/32 filesystems
 ntfs-3g                                  # NTFS filesystem driver
-exfat-utils                               # exFAT filesystem utilities
+exfat-utils                              # exFAT filesystem utilities
 f2fs-tools                               # Tools for Flash-Friendly File System
 udftools                                 # Tools for UDF filesystems (DVD/Optical)
 xfsprogs                                 # Tools for XFS filesystems
@@ -35,11 +38,6 @@ gnome-calendar                           # calendar
 gnome-clocks                             # clocks
 gnome-text-editor                        # notebook
 localsend                                # send files to other devices
-# --- Wine --- 
-wine                                     # run windows exe 
-
-# --- KVM ---
-virt-manager                             #  KVM qemu virtula machine
 
 # --- AUR Packages (Social) ---
 AUR:linuxqq-appimage                     # Tencent QQ (AppImage)
