@@ -334,7 +334,7 @@ if pacman -Qi wine &>/dev/null; then
   fi
 
   # 3. 复制字体
-  FONT_SRC="$SCRIPT_DIR/resources/windows-sim-fonts"
+  FONT_SRC="$PARENT_DIR/resources/windows-sim-fonts"
   FONT_DEST="$WINE_PREFIX/drive_c/windows/Fonts"
 
   if [ -d "$FONT_SRC" ]; then
