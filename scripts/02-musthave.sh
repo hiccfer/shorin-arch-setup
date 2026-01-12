@@ -42,36 +42,46 @@ if [ "$ROOT_FSTYPE" == "btrfs" ]; then
     exe systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
 
     # GRUB Integration
-if [ -d "/boot/grub" ] || [ -f "/etc/default/grub" ]; then
+if [ -f "/etc/default/grub" ] && command -v grub-mkconfig >/dev/null 2>&1; then
         log "Checking GRUB..."
         
-        # --- 核心修改开始：探测 GRUB 在 ESP 分区中的真实路径 ---
-        TARGET_EFI_GRUB=""
+         FOUND_EFI_GRUB=""
         
-        # 1. 优先检测 /efi/grub
-        if [ -d "/efi/grub" ]; then
-            TARGET_EFI_GRUB="/efi/grub"
-        # 2. 其次检测 /boot/efi/grub
-        elif [ -d "/boot/efi/grub" ]; then
-            TARGET_EFI_GRUB="/boot/efi/grub"
+        # 1. 使用 findmnt 查找所有 vfat 类型的挂载点 (通常 ESP 是 vfat)
+        # -n: 不输出标题头
+        # -l: 列表格式输出
+        # -o TARGET: 只输出挂载点路径
+        # -t vfat: 限制文件系统类型
+        # sort -r: 反向排序，这样 /boot/efi 会排在 /boot 之前（如果同时存在），优先匹配深层路径
+        VFAT_MOUNTS=$(findmnt -n -l -o TARGET -t vfat)
+
+        if [ -n "$VFAT_MOUNTS" ]; then
+            # 2. 遍历这些 vfat 分区，寻找 grub 目录
+            # 使用 while read 循环处理多行输出
+            while read -r mountpoint; do
+                # 检查这个挂载点下是否有 grub 目录
+                if [ -d "$mountpoint/grub" ]; then
+                    FOUND_EFI_GRUB="$mountpoint/grub"
+                    log "Found GRUB directory in ESP mountpoint: $mountpoint"
+                    break 
+                fi
+            done <<< "$VFAT_MOUNTS"
         fi
 
-        # 3. 如果找到了有效的 EFI GRUB 路径，则执行软链接检查与修复
-        if [ -n "$TARGET_EFI_GRUB" ]; then
-            # 检查 /boot/grub 是否已经是正确的软链接
-            # readlink -f 能够获取链接的绝对路径，确保比对准确
-            if [ ! -L "/boot/grub" ] || [ "$(readlink -f /boot/grub)" != "$TARGET_EFI_GRUB" ]; then
-                warn "Fixing /boot/grub symlink to $TARGET_EFI_GRUB..."
-                
-                # 如果 /boot/grub 是一个存在的普通目录（非软链接），先进行备份
-                if [ -d "/boot/grub" ] && [ ! -L "/boot/grub" ]; then
-                    exe mv /boot/grub "/boot/grub.bak.$(date +%s)"
-                fi
-                
-                # 创建指向真实路径的软链接
-                exe ln -sf "$TARGET_EFI_GRUB" /boot/grub
-                success "Symlink fix applied."
+        # 3. 如果找到了位于 ESP 中的 GRUB 真实路径
+        if [ -n "$FOUND_EFI_GRUB" ]; then
+            
+            # -e 判断存在, -L 判断是软链接 
+            if [ -e "/boot/grub" ] || [ -L "/boot/grub" ]; then
+                warn "Skip" "/boot/grub already exists. No symlink created."
+            else
+                # 5. 仅当完全不存在时，创建软链接
+                warn "/boot/grub is missing. Linking to $FOUND_EFI_GRUB..."
+                exe ln -sf "$FOUND_EFI_GRUB" /boot/grub
+                success "Symlink created: /boot/grub -> $FOUND_EFI_GRUB"
             fi
+        else
+            log "No 'grub' directory found in any active vfat mounts. Skipping symlink check."
         fi
         # --- 核心修改结束 ---
 
