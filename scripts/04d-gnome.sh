@@ -78,7 +78,7 @@ exe systemctl enable gdm
 #=================================================
 section "Step 2" "Set default terminal"
 log "Setting GNOME default terminal to Ghostty..."
-# 注意：这里如果普通 as_user 失败，通常是因为 dbus 连接问题，但此处保留原样
+
 exe as_user gsettings set org.gnome.desktop.default-applications.terminal exec 'ghostty'
 exe as_user gsettings set org.gnome.desktop.default-applications.terminal exec-arg '-e'
 
