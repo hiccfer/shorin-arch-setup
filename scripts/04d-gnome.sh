@@ -84,9 +84,10 @@ EOF
 section "Step 4" "Configure Shortcuts"
 log "Configuring shortcuts.."
 GNOME_KEY_DIR="$PARENT_DIR/gnome-dotfiles/keybinds"
-cat "$GNOME_KEY_DIR/org.gnome.desktop.wm.keybindings.conf" | sudo -u $TARGET_USER dconf load /org/gnome/desktop/wm/keybindings/
-cat "$GNOME_KEY_DIR/org.gnome.settings-daemon.plugins.media-keys.conf" | sudo -u $TARGET_USER dconf load /org/gnome/settings-daemon/plugins/media-keys/
-cat "$GNOME_KEY_DIR/org.gnome.shell.keybindings.conf" | sudo -u $TARGET_USER dconf load /org/gnome/shell/keybindings/
+chown -R $TARGET_USER $PARENT_DIR/gnome-dotfiles/keybinds
+sudo -u $TARGET_USER bash -c 'cat "$GNOME_KEY_DIR/org.gnome.desktop.wm.keybindings.conf" | dconf load /org/gnome/desktop/wm/keybindings/'
+sudo -u $TARGET_USER bash -c 'cat "$GNOME_KEY_DIR/org.gnome.settings-daemon.plugins.media-keys.conf" | dconf load /org/gnome/settings-daemon/plugins/media-keys/'
+sudo -u $TARGET_USER bash -c 'cat "$GNOME_KEY_DIR/org.gnome.shell.keybindings.conf" | dconf load /org/gnome/shell/keybindings/'
 
 #=================================================
 # extensions
