@@ -202,7 +202,11 @@ section "Config" "file manager"
 if [ "$DMS_NIRI_INSTALLED" = true ]; then
     log "dms niri detected, configuring nautilus"
     exe pacman -S --noconfirm --needed ffmpegthumbnailer gvfs-smb nautilus-open-any-terminal file-roller gnome-keyring gst-plugins-base gst-plugins-good gst-libav nautilus
-
+    as_user mkdir -p "$HOME_DIR/Templates"
+    as_user touch "$HOME_DIR/Templates/new"
+    as_user touch "$HOME_DIR/Templates/new.sh"
+    as_user echo "#!/bin/bash" >> "$HOME_DIR/Templates/new.sh"
+    chown -R "$TARGET_USER" "$HOME_DIR/Templates"
 # Nautilus Nvidia/Input Fix
     DESKTOP_FILE="/usr/share/applications/org.gnome.Nautilus.desktop"
     if [ -f "$DESKTOP_FILE" ]; then
