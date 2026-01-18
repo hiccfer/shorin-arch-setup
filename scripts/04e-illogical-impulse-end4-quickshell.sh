@@ -41,6 +41,9 @@ else
 fi
 
 log "Target user for End4 installation: $TARGET_USER"
+# ==============================================================================
+#  install
+# ==============================================================================
 section "Desktop" "illogical-impulse"
 # 下载并执行安装脚本
 INSTALLER_SCRIPT="/tmp/end4_install.sh"

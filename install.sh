@@ -91,8 +91,9 @@ select_desktop() {
         "Shorin's Niri |niri"
         "KDE Plasma |kde"
         "GNOME |gnome"
-        "end4-illogical-impulse---Quickshell(Hyprland)|end4"
-        "DMS-DankMaterialShell---Quickshell(Niri or Hyprland)|dms"
+        "Quickshell: End4--illogical-impulse (Hyprland)|end4"
+        "Quickshell: DMS--DankMaterialShell (Niri or Hyprland)|dms"
+        "Quickshell: Caelestia (Hyprland)|caelestia"
     )
     
     # 2. 绘制菜单 (半开放式风格)
@@ -186,6 +187,9 @@ case "$DESKTOP_ENV" in
         ;;
     dms)
         BASE_MODULES+=("04c-dms-quickshell.sh")
+        ;;
+    caelestia)
+        BASE_MODULES+=("04g-caelestia-quickshell.sh")
         ;;
     gnome)
         BASE_MODULES+=("04d-gnome.sh")
