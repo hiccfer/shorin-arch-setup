@@ -83,7 +83,7 @@ CAELESTIA_DIR="$HOME_DIR/.local/share/caelestia"
 
 # Clone to .local (Caelestia uses symlinks, not direct copies)
 log "Cloning repository to $CAELESTIA_DIR ..."
-if ! exe github clone "$CAELESTIA_REPO" "$CAELESTIA_DIR"; then
+if ! exe git clone "$CAELESTIA_REPO" "$CAELESTIA_DIR"; then
     warn "Repository clone failed or already exists."
 fi
 
