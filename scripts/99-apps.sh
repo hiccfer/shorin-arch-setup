@@ -465,6 +465,14 @@ mkdir -p "$HOME_DIR/.mozilla"
 cp -rf "$PARENT_DIR/resources/firefox" "$HOME_DIR/.mozilla/"
 chown -R "$TARGET_USER:$TARGET_USER" "$HOME_DIR/.mozilla"
 
+section "Config" "clash tun"
+
+if comamnd -v clash-verge; then 
+     /usr/bin/clash-verge-service &
+     sleep 3
+     clash-verge-service-install || true
+fi
+
 # ------------------------------------------------------------------------------
 # [FIX] CLEANUP GLOBAL SUDO CONFIGURATION
 # ------------------------------------------------------------------------------
