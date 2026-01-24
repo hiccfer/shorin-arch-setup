@@ -489,7 +489,7 @@ if [ -d "$DOTFILES_REPO/wallpapers" ]; then
   as_user touch "$HOME_DIR/Templates/new"
   as_user touch "$HOME_DIR/Templates/new.sh"
   # 修正权限问题，追加写入最好确保文件归属
-  echo "#!/usr/bin/env bash" | as_user tee "$HOME_DIR/Templates/new.sh" >/dev/null
+  echo "#!/bin/bash" | as_user tee "$HOME_DIR/Templates/new.sh" >/dev/null
   as_user chmod +x "$HOME_DIR/Templates/new.sh"
   success "Installed."
 fi
