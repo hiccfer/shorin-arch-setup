@@ -137,7 +137,8 @@ fi
 # ------------------------------------------------------------------------------
 section "Step 4/8" "Input Method (Fcitx5)"
 
-exe pacman -S --noconfirm --needed fcitx5-im fcitx5-chinese-addons
+# chinese-addons备用，ice为主
+exe pacman -S --noconfirm --needed fcitx5-im fcitx5-chinese-addons fcitx5-rime rime-ice-git
 
 success "Fcitx5 installed."
 
