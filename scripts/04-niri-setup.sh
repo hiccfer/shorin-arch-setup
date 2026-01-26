@@ -326,15 +326,16 @@ link_recursive() {
     fi
 
     # 1. 判断是否是需要“穿透”的系统目录
-    # 规则：如果遇到 .config, .local，或者 .local 下面的 share/bin，不要链接，而是递归
+    # 规则：如果遇到 .config, .local，或者 .local 下面的 share，不要链接，而是递归
+    # 修改说明：不再穿透 .local/bin，直接将其作为文件夹链接到目标
     local need_recurse=false
 
     if [ "$item_name" == ".config" ]; then
         need_recurse=true
     elif [ "$item_name" == ".local" ]; then
         need_recurse=true
-    # 只有当父目录名字是以 .local 结尾时，才穿透 share 和 bin
-    elif [[ "$src_dir" == *".local" ]] && { [ "$item_name" == "share" ] || [ "$item_name" == "bin" ]; }; then
+    # 只有当父目录名字是以 .local 结尾时，才穿透 share (bin 被移除了)
+    elif [[ "$src_dir" == *".local" ]] && [ "$item_name" == "share" ]; then
         need_recurse=true
     fi
 
@@ -342,7 +343,7 @@ link_recursive() {
         # 递归进入：传入当前路径作为新的源和目标
         link_recursive "$src_path" "$dest_dir/$item_name" "$exclude_list"
     else
-        # 2. 具体的配置文件夹/文件（如 fcitx5, niri, .zshrc） -> 执行链接
+        # 2. 具体的配置文件夹/文件（如 fcitx5, niri, .zshrc, .local/bin） -> 执行链接
         local target_path="$dest_dir/$item_name"
         
         # 先清理旧的目标（无论是文件、文件夹还是死链）
@@ -352,6 +353,7 @@ link_recursive() {
         
         # 创建软链接
         # 效果：~/.local/share/fcitx5 -> ~/.local/share/shorin-niri/dotfiles/.local/share/fcitx5
+        # 效果：~/.local/bin -> ~/.local/share/shorin-niri/dotfiles/.local/bin
         as_user ln -sf "$src_path" "$target_path"
     fi
   done
