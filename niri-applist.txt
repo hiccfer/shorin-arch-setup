@@ -40,6 +40,7 @@ thefuck                                  # Magnificent app which corrects your p
 jq                                       # Command-line JSON processor
 imagemagick                              # Image manipulation tools
 timg                                     # view image in terminal
+pacman-contrib                           # pacman utilus
 # --- Hardware & Audio ---
 brightnessctl                            # Device brightness control
 cava                                     # Console-based Audio Visualizer
