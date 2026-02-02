@@ -10,7 +10,7 @@ source "$SCRIPT_DIR/00-utils.sh"
 
 DEBUG=${DEBUG:-0}
 CN_MIRROR=${CN_MIRROR:-0}
-UNDO_SCRIPT="$SCRIPT_DIR/niri-undochange.sh"
+UNDO_SCRIPT="$SCRIPT_DIR/de-undochange.sh"
 
 check_root
 

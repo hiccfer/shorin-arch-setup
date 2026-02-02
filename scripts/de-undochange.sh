@@ -13,7 +13,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-TARGET_DESC="Before Shorin Setup"
+TARGET_DESC="Before Desktop Environments"
 
 # 1. Check Root
 if [ "$EUID" -ne 0 ]; then

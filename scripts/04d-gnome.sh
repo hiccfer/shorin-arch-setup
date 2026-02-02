@@ -198,7 +198,7 @@ EOF
 section "Step 5" "Install Extensions"
 log "Installing Extensions CLI..."
 
-sudo -u $TARGET_USER yay -S --noconfirm --needed --answerdiff=None --answerclean=None gnome-extensions-cli
+sudo -u $TARGET_USER yay -S --noconfirm --needed --answerdiff=None --answerclean=None gnome-extensions-cli ttf-jetbrains-maple-mono-nf-xx-xx
 
 EXTENSION_LIST=(
     "arch-update@RaphaelRochet"
