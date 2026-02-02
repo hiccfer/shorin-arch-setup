@@ -36,7 +36,6 @@ clipnotify                               # x11 clipboard manager
 starship                                 # Cross-shell prompt
 zoxide                                   # Smarter cd command
 eza                                      # Modern replacement for ls
-thefuck                                  # Magnificent app which corrects your previous console command
 jq                                       # Command-line JSON processor
 imagemagick                              # Image manipulation tools
 timg                                     # view image in terminal
