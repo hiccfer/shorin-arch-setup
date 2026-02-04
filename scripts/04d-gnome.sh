@@ -1,10 +1,9 @@
 #!/bin/bash
 
 # ==============================================================================
-# GNOME Setup Script (04d-gnome.sh)
+# GNOME Setup Script (04d-gnome.sh) - Fixed D-Bus & Extensions
 # ==============================================================================
 
-# 引用工具库
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARENT_DIR="$(dirname "$SCRIPT_DIR")"
 
@@ -26,7 +25,7 @@ check_root
 log "Identifying user..."
 DETECTED_USER=$(awk -F: '$3 == 1000 {print $1}' /etc/passwd)
 TARGET_USER="${DETECTED_USER:-$(read -p "Target user: " u && echo $u)}"
-TARGET_UID=$(id -u "$TARGET_USER") # 提前获取 UID，后续 DBUS 配置需要
+TARGET_UID=$(id -u "$TARGET_USER")
 HOME_DIR="/home/$TARGET_USER"
 
 info_kv "Target User" "$TARGET_USER"
@@ -54,11 +53,13 @@ trap cleanup_sudo EXIT INT TERM
 #=================================================
 section "Step 1" "Install base pkgs"
 log "Installing GNOME and base tools..."
+
+# 修正了字体包名，原来的 xx-xx 看起来像乱码，这里用标准的 Nerd Font 包名
 if exe as_user yay -S --noconfirm --needed --answerdiff=None --answerclean=None \
     gnome-desktop gnome-backgrounds gnome-tweaks gdm ghostty celluloid loupe \
     gnome-control-center gnome-software flatpak file-roller \
     nautilus-python firefox nm-connection-editor pacman-contrib \
-    dnsmasq ttf-jetbrains-maple-mono-nf-xx-xx; then
+    dnsmasq ttf-jetbrains-mono-nerd; then
 
         exe pacman -S --noconfirm --needed ffmpegthumbnailer gvfs-smb nautilus-open-any-terminal file-roller gnome-keyring gst-plugins-base gst-plugins-good gst-libav nautilus 
         log "Packages installed successfully."
@@ -68,19 +69,27 @@ else
         return 1
 fi
 
-
 # start gdm 
 log "Enable gdm..."
 exe systemctl enable gdm
 
 #=================================================
-# Step 2: Set default terminal
+# Step 2: Set default terminal (修复：加入 D-Bus)
 #=================================================
 section "Step 2" "Set default terminal"
 log "Setting GNOME default terminal to Ghostty..."
 
-exe as_user gsettings set org.gnome.desktop.default-applications.terminal exec 'ghostty'
-exe as_user gsettings set org.gnome.desktop.default-applications.terminal exec-arg '-e'
+# 使用 sudo -u 切换用户，并启动临时 dbus-launch 以确保 gsettings 生效
+sudo -u "$TARGET_USER" bash <<EOF
+    # D-Bus Fix
+    if [ -z "\$DBUS_SESSION_BUS_ADDRESS" ]; then
+        eval \$(dbus-launch --sh-syntax)
+        trap "kill \$DBUS_SESSION_BUS_PID" EXIT
+    fi
+
+    gsettings set org.gnome.desktop.default-applications.terminal exec 'ghostty'
+    gsettings set org.gnome.desktop.default-applications.terminal exec-arg '-e'
+EOF
 
 #=================================================
 # Step 3: Set locale
@@ -89,85 +98,69 @@ section "Step 3" "Set locale"
 log "Configuring GNOME locale for user $TARGET_USER..."
 ACCOUNT_FILE="/var/lib/AccountsService/users/$TARGET_USER"
 ACCOUNT_DIR=$(dirname "$ACCOUNT_FILE")
-# 确保目录存在
 mkdir -p "$ACCOUNT_DIR"
-# 设置语言为中文
 cat > "$ACCOUNT_FILE" <<EOF
 [User]
 Languages=zh_CN.UTF-8
 EOF
 
 #=================================================
-# Step 4: Configure Shortcuts
+# Step 4: Configure Shortcuts (修复：加入 D-Bus)
 #=================================================
 section "Step 4" "Configure Shortcuts"
 log "Configuring shortcuts..."
 
-# 使用 sudo -u 切换用户并注入 DBUS 变量以修改 dconf
 sudo -u "$TARGET_USER" bash <<EOF
-    # 关键：手动指定 DBUS 地址
-    export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${TARGET_UID}/bus"
+    # ================= D-Bus Fix =================
+    # 在非图形化环境修改 dconf 必须手动启动 session bus
+    if [ -z "\$DBUS_SESSION_BUS_ADDRESS" ] || [ ! -e "\${DBUS_SESSION_BUS_ADDRESS#unix:path=}" ]; then
+        echo "   -> Starting temporary D-Bus session for shortcuts..."
+        eval \$(dbus-launch --sh-syntax)
+        trap "kill \$DBUS_SESSION_BUS_PID" EXIT
+    fi
+    # =============================================
 
     echo "   ➜ Applying shortcuts for user: $(whoami)..."
 
-    # ---------------------------------------------------------
-    # 1. org.gnome.desktop.wm.keybindings (窗口管理)
-    # ---------------------------------------------------------
+    # 1. 窗口管理
     SCHEMA="org.gnome.desktop.wm.keybindings"
-    
-    # 基础窗口控制
     gsettings set \$SCHEMA close "['<Super>q']"
     gsettings set \$SCHEMA show-desktop "['<Super>h']"
     gsettings set \$SCHEMA toggle-fullscreen "['<Alt><Super>f']"
     gsettings set \$SCHEMA toggle-maximized "['<Super>f']"
     
-    # 清理未使用的窗口控制键 
     gsettings set \$SCHEMA maximize "[]"
     gsettings set \$SCHEMA minimize "[]"
     gsettings set \$SCHEMA unmaximize "[]"
 
-    # 切换与移动工作区 
     gsettings set \$SCHEMA switch-to-workspace-left "['<Shift><Super>q']"
     gsettings set \$SCHEMA switch-to-workspace-right "['<Shift><Super>e']"
     gsettings set \$SCHEMA move-to-workspace-left "['<Control><Super>q']"
     gsettings set \$SCHEMA move-to-workspace-right "['<Control><Super>e']"
     
-    # 切换应用/窗口 
     gsettings set \$SCHEMA switch-applications "['<Alt>Tab']"
     gsettings set \$SCHEMA switch-applications-backward "['<Shift><Alt>Tab']"
     gsettings set \$SCHEMA switch-group "['<Alt>grave']"
     gsettings set \$SCHEMA switch-group-backward "['<Shift><Alt>grave']"
     
-    # 清理输入法切换快捷键
     gsettings set \$SCHEMA switch-input-source "[]"
     gsettings set \$SCHEMA switch-input-source-backward "[]"
 
-    # ---------------------------------------------------------
-    # 2. org.gnome.shell.keybindings (Shell 全局)
-    # ---------------------------------------------------------
+    # 2. Shell 全局
     SCHEMA="org.gnome.shell.keybindings"
-    
-    # 截图相关
     gsettings set \$SCHEMA screenshot "['<Shift><Control><Super>a']"
     gsettings set \$SCHEMA screenshot-window "['<Control><Super>a']"
     gsettings set \$SCHEMA show-screenshot-ui "['<Alt><Super>a']"
     
-    # 界面视图
     gsettings set \$SCHEMA toggle-application-view "['<Super>g']"
     gsettings set \$SCHEMA toggle-quick-settings "['<Control><Super>s']"
     gsettings set \$SCHEMA toggle-message-tray "[]"
 
-    # ---------------------------------------------------------
-    # 3. org.gnome.settings-daemon.plugins.media-keys (媒体与自定义)
-    # ---------------------------------------------------------
+    # 3. 自定义快捷键
     SCHEMA="org.gnome.settings-daemon.plugins.media-keys"
-
-    # 辅助功能
     gsettings set \$SCHEMA magnifier "['<Alt><Super>0']"
     gsettings set \$SCHEMA screenreader "[]"
 
-    # --- 自定义快捷键逻辑 ---
-    # 定义添加函数
     add_custom() {
         local index="\$1"
         local name="\$2"
@@ -180,12 +173,12 @@ sudo -u "$TARGET_USER" bash <<EOF
         gsettings set "\$key_schema" name "\$name"
         gsettings set "\$key_schema" command "\$cmd"
         gsettings set "\$key_schema" binding "\$bind"
-        
         echo "\$path"
     }
-
-    # 构建自定义快捷键列表
     
+    # 重置列表以避免冲突
+    gsettings set \$SCHEMA custom-keybindings "[]"
+
     P0=\$(add_custom 0 "openbrowser" "firefox" "<Super>b")
     P1=\$(add_custom 1 "openterminal" "ghostty" "<Super>t")
     P2=\$(add_custom 2 "missioncenter" "missioncenter" "<Super>grave")
@@ -193,11 +186,10 @@ sudo -u "$TARGET_USER" bash <<EOF
     P4=\$(add_custom 4 "editscreenshot" "gradia --screenshot" "<Shift><Super>s")
     P5=\$(add_custom 5 "gnome-control-center" "gnome-control-center" "<Control><Alt>s")
 
-    # 应用列表 (已移除重复的 P6)
     CUSTOM_LIST="['\$P0', '\$P1', '\$P2', '\$P3', '\$P4', '\$P5']"
     gsettings set \$SCHEMA custom-keybindings "\$CUSTOM_LIST"
     
-    echo "   ➜ Shortcuts synced with config files successfully."
+    echo "   ➜ Shortcuts synced successfully."
 EOF
 
 #=================================================
@@ -206,7 +198,7 @@ EOF
 section "Step 5" "Install Extensions"
 log "Installing Extensions CLI..."
 
-sudo -u $TARGET_USER yay -S --noconfirm --needed --answerdiff=None --answerclean=None gnome-extensions-cli
+sudo -u $TARGET_USER yay -S --noconfirm --needed --answerdiff=None --answerclean=None gnome-extensions-cli ttf-jetbrains-maple-mono-nf-xx-xx
 
 EXTENSION_LIST=(
     "arch-update@RaphaelRochet"
@@ -230,20 +222,24 @@ log "Downloading extensions..."
 sudo -u $TARGET_USER gnome-extensions-cli install "${EXTENSION_LIST[@]}" 2>/dev/null
 
 section "Step 5.2" "Enable GNOME Extensions"
+# 【核心修复】：为启用扩展添加 D-Bus 支持
 sudo -u "$TARGET_USER" bash <<EOF
-    export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${TARGET_UID}/bus"
+    # D-Bus Fix
+    if [ -z "\$DBUS_SESSION_BUS_ADDRESS" ]; then
+        eval \$(dbus-launch --sh-syntax)
+        trap "kill \$DBUS_SESSION_BUS_PID" EXIT
+    fi
 
-    # 定义一个函数来安全地启用扩展 (追加模式)
+    echo "   ➜ Activating extensions via gsettings (D-Bus Active)..."
+
     enable_extension() {
         local uuid="\$1"
         local current_list=\$(gsettings get org.gnome.shell enabled-extensions)
         
-        # 检查是否已经在列表中
         if [[ "\$current_list" == *"\$uuid"* ]]; then
             echo "   -> Extension \$uuid already enabled."
         else
             echo "   -> Enabling extension: \$uuid"
-            # 如果列表为空 (@as [])，直接设置；否则追加
             if [ "\$current_list" = "@as []" ]; then
                 gsettings set org.gnome.shell enabled-extensions "['\$uuid']"
             else
@@ -253,42 +249,45 @@ sudo -u "$TARGET_USER" bash <<EOF
         fi
     }
 
-    echo "   ➜ Activating extensions via gsettings..."
+    # 数组遍历，更整洁
+    declare -a ext_array=(
+        "user-theme@gnome-shell-extensions.gcampax.github.com"
+        "arch-update@RaphaelRochet"
+        "aztaskbar@aztaskbar.gitlab.com"
+        "blur-my-shell@aunetx"
+        "caffeine@patapon.info"
+        "clipboard-indicator@tudmotu.com"
+        "color-picker@tuberry"
+        "desktop-cube@schneegans.github.com"
+        "fuzzy-application-search@mkhl.codeberg.page"
+        "lockkeys@vaina.lt"
+        "middleclickclose@paolo.tranquilli.gmail.com"
+        "steal-my-focus-window@steal-my-focus-window"
+        "tilingshell@ferrarodomenico.com"
+        "kimpanel@kde.org"
+        "rounded-window-corners@fxgn"
+        "appindicatorsupport@rgcjonas.gmail.com"
+    )
 
-    enable_extension "user-theme@gnome-shell-extensions.gcampax.github.com"
-    enable_extension "arch-update@RaphaelRochet"
-    enable_extension "aztaskbar@aztaskbar.gitlab.com"
-    enable_extension "blur-my-shell@aunetx"
-    enable_extension "caffeine@patapon.info"
-    enable_extension "clipboard-indicator@tudmotu.com"
-    enable_extension "color-picker@tuberry"
-    enable_extension "desktop-cube@schneegans.github.com"
-    enable_extension "fuzzy-application-search@mkhl.codeberg.page"
-    enable_extension "lockkeys@vaina.lt"
-    enable_extension "middleclickclose@paolo.tranquilli.gmail.com"
-    enable_extension "steal-my-focus-window@steal-my-focus-window"
-    enable_extension "tilingshell@ferrarodomenico.com"
-    enable_extension "kimpanel@kde.org"
-    enable_extension "rounded-window-corners@fxgn"
-    enable_extension "appindicatorsupport@rgcjonas.gmail.com"
-
-    echo "   ➜ Extensions activation request sent."
+    for ext in "\${ext_array[@]}"; do
+        enable_extension "\$ext"
+    done
 EOF
 
-# 编译扩展 Schema (防止报错)
+# 编译扩展 Schema
 log "Compiling extension schemas..."
-# 先确保所有权正确
 chown -R $TARGET_USER:$TARGET_USER $HOME_DIR/.local/share/gnome-shell/extensions
 
 sudo -u "$TARGET_USER" bash <<EOF
     EXT_DIR="$HOME_DIR/.local/share/gnome-shell/extensions"
-    
     echo "   ➜ Compiling schemas in \$EXT_DIR..."
-    for dir in "\$EXT_DIR"/*; do
-        if [ -d "\$dir/schemas" ]; then
-            glib-compile-schemas "\$dir/schemas"
-        fi
-    done
+    if [ -d "\$EXT_DIR" ]; then
+        for dir in "\$EXT_DIR"/*; do
+            if [ -d "\$dir/schemas" ]; then
+                glib-compile-schemas "\$dir/schemas"
+            fi
+        done
+    fi
 EOF
 
 #=================================================
@@ -297,10 +296,8 @@ EOF
 section "Firefox" "Configuring Firefox GNOME Integration"
 exe sudo -u $TARGET_USER yay -S --noconfirm --needed --answerdiff=None --answerclean=None gnome-browser-connector
 
-# 配置 Firefox 策略自动安装扩展
 POL_DIR="/etc/firefox/policies"
 exe mkdir -p "$POL_DIR"
-
 echo '{
   "policies": {
     "Extensions": {
@@ -310,19 +307,16 @@ echo '{
     }
   }
 }' > "$POL_DIR/policies.json"
-
 exe chmod 755 "$POL_DIR" && exe chmod 644 "$POL_DIR/policies.json"
 log "Firefox policies updated."
+
 #=================================================
-# nautilus fix
+# Nautilus Fix & Input Method
 #=================================================
 configure_nautilus_user
-#=================================================
-# Step 6: Input Method
-#=================================================
+
 section "Step 6" "Input method"
 log "Configure input method environment..."
-
 if ! grep -q "fcitx" "/etc/environment" 2>/dev/null; then
     cat << EOT >> /etc/environment
 XIM="fcitx"
@@ -331,9 +325,6 @@ QT_IM_MODULE=fcitx
 XMODIFIERS=@im=fcitx
 XDG_CURRENT_DESKTOP=GNOME
 EOT
-    log "Fcitx environment variables added."
-else
-    log "Fcitx environment variables already exist."
 fi
 
 #=================================================
@@ -342,31 +333,30 @@ fi
 section "Dotfiles" "Deploying dotfiles"
 GNOME_DOTFILES_DIR=$PARENT_DIR/gnome-dotfiles
 
-# 1. 确保目标目录存在
 log "Ensuring .config exists..."
 sudo -u $TARGET_USER mkdir -p $HOME_DIR/.config
 
-# 2. 复制文件 (包含隐藏文件)
-# 使用 /. 语法将源文件夹的*内容*合并到目标文件夹
 log "Copying dotfiles..."
-cp -rf "$GNOME_DOTFILES_DIR/." "$HOME_DIR/"
+if [ -d "$GNOME_DOTFILES_DIR" ]; then
+    cp -rf "$GNOME_DOTFILES_DIR/." "$HOME_DIR/"
+else
+    warn "Dotfiles directory not found: $GNOME_DOTFILES_DIR"
+fi
+
 as_user mkdir -p "$HOME_DIR/Templates"
 as_user touch "$HOME_DIR/Templates/new"
-as_user touch "$HOME_DIR/Templates/new.sh"
-as_user echo "#!/bin/bash" >> "$HOME_DIR/Templates/new.sh"
-# 3. 修复权限 (因为 cp 是 root 运行的)
-# 明确修复 home 目录下的关键配置文件夹，避免权限问题
+# 修复：确保 new.sh 是用户所有，且内容正确
+sudo -u "$TARGET_USER" bash -c "echo '#!/bin/bash' > $HOME_DIR/Templates/new.sh"
+sudo -u "$TARGET_USER" chmod +x "$HOME_DIR/Templates/new.sh"
+
 log "Fixing permissions..."
 chown -R $TARGET_USER:$TARGET_USER $HOME_DIR/.config
 chown -R $TARGET_USER:$TARGET_USER $HOME_DIR/.local
 
+if command -v flatpak &>/dev/null; then
+    sudo -u "$TARGET_USER" flatpak override --user --filesystem=xdg-config/fontconfig
+fi
 
-# ===  flatpak 权限  ====
-  if command -v flatpak &>/dev/null; then
-    as_user flatpak override --user --filesystem=xdg-config/fontconfig
-  fi
-
-# 4. 安装 Shell 工具
 log "Installing shell tools..."
 pacman -S --noconfirm --needed thefuck starship eza fish zoxide jq
 

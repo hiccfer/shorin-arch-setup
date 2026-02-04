@@ -10,7 +10,7 @@ source "$SCRIPT_DIR/00-utils.sh"
 
 DEBUG=${DEBUG:-0}
 CN_MIRROR=${CN_MIRROR:-0}
-UNDO_SCRIPT="$SCRIPT_DIR/niri-undochange.sh"
+UNDO_SCRIPT="$SCRIPT_DIR/de-undochange.sh"
 
 check_root
 
@@ -369,6 +369,8 @@ prepare_repository() {
 
   if [ ! -d "$DOTFILES_REPO" ]; then
     log "Initializing Sparse & Shallow Checkout to $DOTFILES_REPO..."
+    cd "$HOME_DIR"
+    #chown -R $TARGET_USER $HOME_DIR/.local/share
     as_user mkdir -p "$DOTFILES_REPO"
     
     as_user git -C "$DOTFILES_REPO" init
@@ -385,9 +387,10 @@ prepare_repository() {
     
     log "Downloading latest snapshot (Github)..."
     # 修复点 2：同样明确指定 origin main
-    if ! as_user git -C "$DOTFILES_REPO" pull origin "$BRANCH_NAME" --depth 1; then # <--- 修改
+    if ! as_user git -C "$DOTFILES_REPO" pull origin "$BRANCH_NAME" --depth 1 ; then # <--- 修改
       critical_failure_handler "Failed to download dotfiles (Sparse+Shallow failed)."
     else 
+      chown -R $TARGET_USER $DOTFILES_REPO
       as_user git -C "$DOTFILES_REPO" branch --set-upstream-to=origin/main main
       as_user git config --global --add safe.directory "$DOTFILES_REPO"
     fi

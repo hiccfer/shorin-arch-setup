@@ -156,6 +156,12 @@ if [ "$HAS_NVIDIA" = true ]; then
     fi
 fi
 
+if systemd-detect-virt -q; then 
+
+    log "virtualmachine detected"
+    PKGS+=("spice-vdagent")
+fi
+
 # ==============================================================================
 # 4. 执行
 # ==============================================================================
