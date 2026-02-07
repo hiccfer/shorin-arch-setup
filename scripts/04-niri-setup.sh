@@ -133,7 +133,7 @@ HOME_DIR="/home/$TARGET_USER"
 info_kv "Target" "$TARGET_USER"
 
 # DM Check
-KNOWN_DMS=("gdm" "sddm" "lightdm" "lxdm" "slim" "xorg-xdm" "ly" "greetd")
+KNOWN_DMS=("gdm" "sddm" "lightdm" "lxdm" "slim" "xorg-xdm" "ly" "greetd" "plasma-login-manager")
 SKIP_AUTOLOGIN=false
 DM_FOUND=""
 for dm in "${KNOWN_DMS[@]}"; do
@@ -312,7 +312,6 @@ link_recursive() {
   local dest_dir="$2"
   local exclude_list="$3"
 
-  # 确保目标容器目录存在 (比如确保 ~/.local/share 存在)
   as_user mkdir -p "$dest_dir"
 
   find "$src_dir" -mindepth 1 -maxdepth 1 -not -path '*/.git*' | while read -r src_path; do
@@ -326,8 +325,6 @@ link_recursive() {
     fi
 
     # 1. 判断是否是需要“穿透”的系统目录
-    # 规则：如果遇到 .config, .local，或者 .local 下面的 share，不要链接，而是递归
-    # 修改说明：不再穿透 .local/bin，直接将其作为文件夹链接到目标
     local need_recurse=false
 
     if [ "$item_name" == ".config" ]; then
@@ -341,6 +338,7 @@ link_recursive() {
 
     if [ "$need_recurse" = true ]; then
         # 递归进入：传入当前路径作为新的源和目标
+        log "  Entering container: $item_name"
         link_recursive "$src_path" "$dest_dir/$item_name" "$exclude_list"
     else
         # 2. 具体的配置文件夹/文件（如 fcitx5, niri, .zshrc, .local/bin） -> 执行链接
@@ -348,12 +346,12 @@ link_recursive() {
         
         # 先清理旧的目标（无论是文件、文件夹还是死链）
         if [ -e "$target_path" ] || [ -L "$target_path" ]; then
+            log "  Overwriting: $item_name"
             as_user rm -rf "$target_path"
         fi
         
         # 创建软链接
-        # 效果：~/.local/share/fcitx5 -> ~/.local/share/shorin-niri/dotfiles/.local/share/fcitx5
-        # 效果：~/.local/bin -> ~/.local/share/shorin-niri/dotfiles/.local/bin
+        info_kv "Linking" "$item_name -> $dest_dir"
         as_user ln -sf "$src_path" "$target_path"
     fi
   done
@@ -366,6 +364,18 @@ prepare_repository() {
   local TARGET_DIRS=("dotfiles" "wallpapers")
   # 建议定义一个变量指定主分支名，防止以后 Github 变成 other-branch
   local BRANCH_NAME="main" 
+  if [ -d "$DOTFILES_REPO" ]; then
+    if ! as_user git -C "$DOTFILES_REPO" rev-parse --is-inside-work-tree &>/dev/null; then
+      warn "Found incomplete or broken repository folder. Cleaning up..."
+       rm -rf "$DOTFILES_REPO"
+    else
+      log "Repository already exists. Checking for updates..."
+      if ! as_user git -C "$DOTFILES_REPO" pull origin "$BRANCH_NAME"; then
+         warn "Update failed (network issue?), cleaning up..."
+         rm -rf "$DOTFILES_REPO"
+      fi
+    fi
+  fi
 
   if [ ! -d "$DOTFILES_REPO" ]; then
     log "Initializing Sparse & Shallow Checkout to $DOTFILES_REPO..."
@@ -380,21 +390,27 @@ prepare_repository() {
     as_user git -C "$DOTFILES_REPO" config core.sparseCheckout true
     local sparse_file="$DOTFILES_REPO/.git/info/sparse-checkout"
     for item in "${TARGET_DIRS[@]}"; do
+      log "  Configuring sparse-checkout: $item"
       echo "$item" | as_user tee -a "$sparse_file" >/dev/null
     done
-    
+    log "  Adding remote origin: $REPO_GITHUB"
     as_user git -C "$DOTFILES_REPO" remote add origin "$REPO_GITHUB"
     
     log "Downloading latest snapshot (Github)..."
     # 修复点 2：同样明确指定 origin main
-    if ! as_user git -C "$DOTFILES_REPO" pull origin "$BRANCH_NAME" --depth 1 ; then # <--- 修改
+    if ! as_user git -C "$DOTFILES_REPO" pull origin "$BRANCH_NAME" --depth 1 ; then 
+      error "Failed to download dotfiles." 
+      warn "Cleaning up empty directory to prevent errors on retry..."
+      rm -rf "$DOTFILES_REPO" 
       critical_failure_handler "Failed to download dotfiles (Sparse+Shallow failed)."
     else 
       chown -R $TARGET_USER $DOTFILES_REPO
       as_user git -C "$DOTFILES_REPO" branch --set-upstream-to=origin/main main
       as_user git config --global --add safe.directory "$DOTFILES_REPO"
+      success "Repository prepared and permissions fixed."
     fi
-
+  else
+    log "Dotfiles repo already exists. Skipping clone."
   fi
 }
 

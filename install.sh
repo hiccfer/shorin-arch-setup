@@ -1,5 +1,5 @@
 #!/bin/bash
-
+export SHELL=$(command -v bash)
 # ==============================================================================
 # Shorin Arch Setup - Main Installer (v1.1))
 # ==============================================================================
@@ -226,7 +226,7 @@ else
     exe pacman -S --noconfirm --needed reflector
 
     CURRENT_TZ=$(readlink -f /etc/localtime)
-    REFLECTOR_ARGS="-a 24 -f 10 --sort score --save /etc/pacman.d/mirrorlist --verbose"
+    REFLECTOR_ARGS="--protocol https -a 24 -f 10 --sort score --save /etc/pacman.d/mirrorlist --verbose"
 
     if [[ "$CURRENT_TZ" == *"Shanghai"* ]]; then
         echo ""
@@ -264,7 +264,7 @@ else
             fi
         else
             warn "Could not detect country. Running global speed test..."
-            exe reflector $REFLECTOR_ARGS
+            exe reflector $REFLECTOR_ARGS --latest 25
         fi
         success "Mirrorlist optimized."
     fi
